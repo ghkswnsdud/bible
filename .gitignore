@@ -1,0 +1,14 @@
+# local Claude/preview settings
+.claude/
+
+# artifact build output (rebuild with: python build.py)
+bible.html
+
+# Python / OS / editor
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

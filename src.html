@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>오늘의 말씀</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;700&family=Gowun+Dodum&display=swap">
+<style>
+  /* one-screen stage: 3D book in the middle, controls float over it on glass */
+  :root {
+    --bg1: #f4ead8; --bg2: #d6c19c;
+    --ink: #2e2318; --muted: #75624a;
+    --gold: #b8892f; --wine: #7a1f1f;
+    --glass: rgba(255, 250, 240, .42); --glass-line: rgba(255, 255, 255, .65);
+    --serif: "Noto Serif KR", "Nanum Myeongjo", serif;
+    --sans: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    color-scheme: light;
+  }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { background: radial-gradient(circle at 50% 42%, var(--bg1), var(--bg2)); color: var(--ink); font-family: var(--sans); }
+  canvas { display: block; position: relative; touch-action: none; outline: none; } /* positioned so it paints above #glow */
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  #glow { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.6s ease;
+    background: radial-gradient(circle at 50% 42%, rgba(255, 205, 110, .55), transparent 55%); }
+  #glow.on { opacity: 1; }
+
+  .glass { background: var(--glass); border: 1px solid var(--glass-line); border-radius: 18px;
+    backdrop-filter: blur(16px) saturate(1.3); -webkit-backdrop-filter: blur(16px) saturate(1.3);
+    box-shadow: 0 10px 40px rgba(80, 50, 10, .18); }
+
+  header { position: fixed; top: 0; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); pointer-events: none; }
+  header > * { pointer-events: auto; }
+  h1 { margin: 0; font: 700 18px var(--serif); color: var(--wine); letter-spacing: .08em; }
+  .chips { display: flex; gap: 6px; padding: 5px; border-radius: 999px; flex-wrap: wrap; }
+  .chip { border: 0; background: transparent; padding: 6px 13px; border-radius: 999px; font-size: 14px; color: var(--muted); }
+  .chip[aria-pressed="true"] { background: var(--wine); color: #fff8ec; }
+  .tools { display: flex; gap: 8px; }
+  .icon-btn { border: 1px solid var(--glass-line); background: var(--glass); border-radius: 999px; padding: 8px 14px; font-size: 14px;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+
+  #hint { position: fixed; left: 0; right: 0; bottom: calc(30px + env(safe-area-inset-bottom, 0px)); text-align: center; color: var(--muted);
+    font-size: 15px; letter-spacing: .12em; pointer-events: none; transition: opacity .5s; }
+
+  #card { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); width: min(460px, calc(100% - 32px));
+    transform: translate(-50%, 24px); opacity: 0; pointer-events: none; transition: opacity .6s ease, transform .6s cubic-bezier(.2, .8, .2, 1);
+    padding: 18px 20px 14px; box-sizing: border-box; }
+  #card.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .cat { display: inline-block; font-size: 12px; letter-spacing: .14em; color: var(--gold); border: 1px solid currentColor; border-radius: 999px; padding: 2px 10px; }
+  #card p { margin: 10px 0 6px; font: 500 17px/1.75 var(--serif); text-wrap: pretty; }
+  #card cite { display: block; font: italic 14px var(--serif); color: var(--wine); }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .row button { flex: 1 1 auto; border: 1px solid var(--glass-line); background: rgba(255, 255, 255, .45); border-radius: 12px; padding: 8px 10px; font-size: 14px; }
+  .row button[aria-pressed="true"] { color: var(--wine); border-color: var(--wine); }
+
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 100%); box-sizing: border-box; border-radius: 18px 0 0 18px;
+    padding: calc(18px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) 18px;
+    transform: translateX(105%); transition: transform .45s cubic-bezier(.2, .8, .2, 1); display: flex; flex-direction: column; gap: 12px; }
+  #drawer.open { transform: none; }
+  #drawer h2 { margin: 0; font: 700 17px var(--serif); display: flex; justify-content: space-between; align-items: center; }
+  #list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  #list li { background: rgba(255, 255, 255, .5); border-radius: 14px; padding: 12px 14px; }
+  #list p { margin: 0 0 6px; font: 15px/1.65 var(--serif); }
+  #list cite { font: italic 13px var(--serif); color: var(--wine); }
+  #list .row { margin-top: 8px; }
+  .empty { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+  #toast { position: fixed; top: calc(70px + env(safe-area-inset-top, 0px)); left: 50%; transform: translate(-50%, -10px); opacity: 0;
+    background: var(--ink); color: #fff8ec; padding: 8px 16px; border-radius: 999px; font-size: 14px; transition: .3s; pointer-events: none; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (prefers-reduced-motion: reduce) { #card, #drawer, #glow, #toast { transition-duration: .01s; } }
+</style>
+</head>
+<body>
+<div id="glow"></div>
+<header>
+  <h1>오늘의 말씀</h1>
+  <div class="chips glass" role="group" aria-label="주제 선택" id="chips"></div>
+  <div class="tools">
+    <button class="icon-btn" id="openDrawer" aria-label="보관함 열기">♡ 보관함 <span id="count">0</span></button>
+    <button class="icon-btn" id="sound" aria-pressed="true" aria-label="효과음 켜기/끄기">♪ 소리 켬</button>
+  </div>
+</header>
+<div id="hint">책을 눌러 말씀을 펼쳐보세요 · 드래그로 둘러보기</div>
+
+<section id="card" class="glass" aria-live="polite">
+  <span class="cat" id="cardCat"></span>
+  <p id="cardText"></p>
+  <cite id="cardRef"></cite>
+  <div class="row">
+    <button id="copy">복사</button>
+    <button id="save" aria-pressed="false">♡ 저장</button>
+    <button id="next">다른 구절 ›</button>
+    <button id="close">책 덮기</button>
+  </div>
+</section>
+
+<aside id="drawer" class="glass" aria-label="보관함">
+  <h2>보관한 말씀 <button class="icon-btn" id="closeDrawer" aria-label="보관함 닫기">닫기</button></h2>
+  <ul id="list"></ul>
+</aside>
+<div id="toast" role="status"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+const MODEL = '__MODEL__';
+
+// ---------- verses (개역한글, public domain) ----------
+const VERSES = [
+  ['위로', '마태복음 11:28', '수고하고 무거운 짐 진 자들아 다 내게로 오라 내가 너희를 쉬게 하리라'],
+  ['위로', '시편 23:1', '여호와는 나의 목자시니 내가 부족함이 없으리로다'],
+  ['위로', '시편 46:1', '하나님은 우리의 피난처시요 힘이시니 환난 중에 만날 큰 도움이시라'],
+  ['위로', '마태복음 6:34', '그러므로 내일 일을 위하여 염려하지 말라 내일 일은 내일 염려할 것이요 한 날 괴로움은 그 날에 족하니라'],
+  ['위로', '시편 34:18', '여호와는 마음이 상한 자에게 가까이 하시고 중심에 통회하는 자를 구원하시는도다'],
+  ['힘', '빌립보서 4:13', '내게 능력 주시는 자 안에서 내가 모든 것을 할 수 있느니라'],
+  ['힘', '이사야 41:10', '두려워 말라 내가 너와 함께 함이니라 놀라지 말라 나는 네 하나님이 됨이니라 내가 너를 굳세게 하리라 참으로 너를 도와주리라'],
+  ['힘', '여호수아 1:9', '마음을 강하게 하고 담대히 하라 두려워 말며 놀라지 말라 네가 어디로 가든지 네 하나님 여호와가 너와 함께 하느니라'],
+  ['힘', '이사야 40:31', '오직 여호와를 앙망하는 자는 새 힘을 얻으리니 독수리의 날개치며 올라감 같을 것이요 달음박질하여도 곤비치 아니하겠고 걸어가도 피곤치 아니하리로다'],
+  ['힘', '시편 18:1', '나의 힘이신 여호와여 내가 주를 사랑하나이다'],
+  ['사랑', '요한복음 3:16', '하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니 이는 저를 믿는 자마다 멸망치 않고 영생을 얻게 하려 하심이니라'],
+  ['사랑', '고린도전서 13:13', '그런즉 믿음, 소망, 사랑, 이 세가지는 항상 있을 것인데 그 중에 제일은 사랑이라'],
+  ['사랑', '요한일서 4:8', '사랑하지 아니하는 자는 하나님을 알지 못하나니 이는 하나님은 사랑이심이라'],
+  ['사랑', '고린도전서 13:4', '사랑은 오래 참고 사랑은 온유하며 투기하는 자가 되지 아니하며 사랑은 자랑하지 아니하며 교만하지 아니하며'],
+  ['사랑', '로마서 5:8', '우리가 아직 죄인 되었을 때에 그리스도께서 우리를 위하여 죽으심으로 하나님께서 우리에게 대한 자기의 사랑을 확증하셨느니라'],
+  ['소망', '예레미야 29:11', '너희를 향한 나의 생각은 내가 아나니 재앙이 아니라 곧 평안이요 너희 장래에 소망을 주려 하는 생각이라'],
+  ['소망', '로마서 8:28', '우리가 알거니와 하나님을 사랑하는 자 곧 그 뜻대로 부르심을 입은 자들에게는 모든 것이 합력하여 선을 이루느니라'],
+  ['소망', '시편 119:105', '주의 말씀은 내 발에 등이요 내 길에 빛이니이다'],
+  ['소망', '로마서 15:13', '소망의 하나님이 모든 기쁨과 평강을 믿음 안에서 너희에게 충만케 하사 성령의 능력으로 소망이 넘치게 하시기를 원하노라'],
+  ['소망', '잠언 3:5-6', '너는 마음을 다하여 여호와를 의뢰하고 네 명철을 의지하지 말라 너는 범사에 그를 인정하라 그리하면 네 길을 지도하시리라'],
+].map(([cat, ref, text]) => ({ cat, ref, text }));
+const CATS = ['전체', '위로', '힘', '사랑', '소망'];
+let cat = '전체', current = null;
+function pick() {
+  const pool = VERSES.filter((v) => (cat === '전체' || v.cat === cat) && v !== current);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ---------- small helpers ----------
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+let toastTimer;
+function toast(msg) {
+  $('toast').textContent = msg; $('toast').classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 1600);
+}
+async function copy(v) {
+  const s = `${v.text}\n— ${v.ref} (개역한글)`;
+  try { await navigator.clipboard.writeText(s); }
+  catch { // fallback for viewers that refuse the clipboard API
+    const t = document.createElement('textarea'); t.value = s; document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); } catch {} t.remove();
+  }
+  toast('구절을 복사했어요');
+}
+
+// ---------- audio (Web Audio synth, no files) ----------
+let ac, master, verb, soundOn = store.get('bible-sound', true);
+function audio() {
+  if (!ac) {
+    ac = new AudioContext();
+    master = ac.createGain(); master.gain.value = soundOn ? 1 : 0; master.connect(ac.destination);
+    verb = ac.createConvolver(); // generated hall impulse
+    const len = ac.sampleRate * 3, ir = ac.createBuffer(2, len, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+    verb.buffer = ir; const wet = ac.createGain(); wet.gain.value = 0.5; verb.connect(wet).connect(master);
+  }
+  if (ac.state === 'suspended') ac.resume();
+}
+// paper flip: noise shaped into a rising/falling rustle with random crinkle spikes, then a soft landing tap
+function noiseBurst(t, dur, shape, type, freq, q, gain) {
+  const len = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+  let crinkle = 0;
+  for (let i = 0; i < len; i++) {
+    crinkle *= 0.996; if (Math.random() < 0.0012) crinkle = 0.6 + Math.random() * 0.4;
+    d[i] = (Math.random() * 2 - 1) * shape(i / len) * (0.35 + 0.65 * crinkle);
+  }
+  const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  src.buffer = buf; f.type = type; f.frequency.value = freq; f.Q.value = q; g.gain.value = gain;
+  src.connect(f).connect(g); g.connect(master); g.connect(verb); src.start(t);
+}
+function paperFlip(delay, dur, heavy = false) {
+  if (!ac || !soundOn) return;
+  const t = ac.currentTime + delay;
+  noiseBurst(t, dur, (x) => Math.pow(Math.sin(Math.PI * x), 1.6), 'bandpass', heavy ? 1400 : 2600, 0.7, heavy ? 0.5 : 0.35);
+  noiseBurst(t + dur * 0.85, 0.08, (x) => Math.pow(1 - x, 3), 'lowpass', heavy ? 350 : 700, 0.7, heavy ? 0.9 : 0.4);
+}
+function setSound(on) {
+  soundOn = on; store.set('bible-sound', on);
+  $('sound').setAttribute('aria-pressed', on); $('sound').textContent = on ? '♪ 소리 켬' : '♪ 소리 끔';
+  if (on) audio();
+  if (master) master.gain.setTargetAtTime(on ? 1 : 0, ac.currentTime, 0.3);
+}
+$('sound').onclick = () => setSound(!soundOn);
+setSound(soundOn);
+if (soundOn) addEventListener('pointerdown', audio, { once: true }); // browsers only start audio after a gesture
+
+// ---------- bookmarks ----------
+let marks = store.get('bible-bookmarks', []);
+const isMarked = (v) => v && marks.some((m) => m.ref === v.ref);
+function renderMarks() {
+  $('count').textContent = marks.length;
+  $('save').setAttribute('aria-pressed', isMarked(current));
+  $('save').textContent = isMarked(current) ? '♥ 저장됨' : '♡ 저장';
+  const list = $('list'); list.replaceChildren();
+  if (!marks.length) { const e = document.createElement('li'); e.className = 'empty'; e.textContent = '아직 보관한 말씀이 없어요. 구절 카드의 ♡ 저장을 눌러 모아보세요.'; list.append(e); }
+  for (const m of marks) {
+    const li = document.createElement('li'), p = document.createElement('p'), c = document.createElement('cite'), row = document.createElement('div');
+    p.textContent = m.text; c.textContent = `${m.ref} · ${m.cat}`; row.className = 'row';
+    const cp = document.createElement('button'); cp.textContent = '복사'; cp.onclick = () => copy(m);
+    const del = document.createElement('button'); del.textContent = '삭제'; del.onclick = () => { marks = marks.filter((x) => x.ref !== m.ref); store.set('bible-bookmarks', marks); renderMarks(); toast('보관함에서 삭제했어요'); };
+    row.append(cp, del); li.append(p, c, row); list.append(li);
+  }
+}
+$('save').onclick = () => {
+  if (!current) return;
+  if (isMarked(current)) { marks = marks.filter((m) => m.ref !== current.ref); toast('저장을 취소했어요'); }
+  else { marks = [current, ...marks]; toast('보관함에 저장했어요'); }
+  store.set('bible-bookmarks', marks); renderMarks();
+};
+$('copy').onclick = () => current && copy(current);
+$('openDrawer').onclick = () => $('drawer').classList.add('open');
+$('closeDrawer').onclick = () => $('drawer').classList.remove('open');
+renderMarks();
+
+// ---------- category chips ----------
+for (const c of CATS) {
+  const b = document.createElement('button'); b.className = 'chip'; b.textContent = c; b.setAttribute('aria-pressed', c === cat);
+  b.onclick = () => {
+    cat = c; document.querySelectorAll('.chip').forEach((x) => x.setAttribute('aria-pressed', x === b));
+    if (revealed && !turn) turnTo(pick());
+  };
+  $('chips').append(b);
+}
+
+// ---------- three.js scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+$('glow').after(renderer.domElement); // glow stays behind the book
+
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const sun = new THREE.DirectionalLight(0xfff4e0, 1.6);
+sun.position.set(3, 5, 6);
+scene.add(sun);
+
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+camera.position.set(0, 0, 10);
+const controls = new OrbitControls(camera, renderer.domElement);
+Object.assign(controls, { enableDamping: true, dampingFactor: 0.08, enablePan: false, rotateSpeed: 0.8 });
+function resize() {
+  const w = innerWidth, h = innerHeight, tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  camera.aspect = w / h;
+  const dist = Math.max(2.5 / (tan * camera.aspect), 2.6 / tan); // fit the open spread plus room for the card
+  camera.position.setLength(dist);
+  controls.minDistance = dist * 0.55; controls.maxDistance = dist * 1.6;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+addEventListener('resize', resize);
+resize();
+
+// ---------- paper pages (canvas textures) ----------
+const PW = 1.95, PH = 2.95, PAPER = '#ffffff', INK = '#111111';
+function wrap(g, text, maxW) {
+  const lines = []; let line = '';
+  for (const word of text.split(' ')) {
+    const next = line ? line + ' ' + word : word;
+    if (g.measureText(next).width > maxW && line) { lines.push(line); line = word; } else line = next;
+  }
+  return [...lines, line];
+}
+function paper(g, c, gutterAtLeft) {
+  g.fillStyle = PAPER; g.fillRect(0, 0, c.width, c.height);
+  const gr = g.createLinearGradient(gutterAtLeft ? 0 : c.width, 0, gutterAtLeft ? 90 : c.width - 90, 0); // gutter shadow
+  gr.addColorStop(0, 'rgba(0,0,0,.12)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height);
+  g.strokeStyle = 'rgba(0,0,0,.15)'; g.lineWidth = 2; g.strokeRect(46, 46, c.width - 92, c.height - 92);
+}
+function drawLeft(g, c, v) {
+  paper(g, c, false);
+  g.textAlign = 'center'; g.fillStyle = INK;
+  if (!v) { g.font = '700 30px "Noto Serif KR", serif'; g.fillText('✝', c.width / 2, c.height / 2); return; }
+  g.font = '28px "Noto Serif KR", serif'; g.fillText(v.cat, c.width / 2, c.height / 2 - 90);
+  g.font = '700 46px "Noto Serif KR", serif'; g.fillText('오늘의 말씀', c.width / 2, c.height / 2 - 20);
+  g.fillRect(c.width / 2 - 40, c.height / 2 + 10, 80, 2);
+  g.font = '34px "Noto Serif KR", serif'; g.fillText(v.ref, c.width / 2, c.height / 2 + 70);
+}
+function drawRight(g, c, v) {
+  paper(g, c, true);
+  g.textAlign = 'center'; g.fillStyle = INK;
+  if (!v) {
+    g.font = '700 56px "Noto Serif KR", serif'; g.fillText('성 경', c.width / 2, c.height / 2 - 10);
+    g.font = '26px "Noto Serif KR", serif'; g.fillText('THE HOLY BIBLE', c.width / 2, c.height / 2 + 50);
+    return;
+  }
+  g.font = '500 40px "Noto Serif KR", serif';
+  const lines = wrap(g, v.text, c.width - 170), lh = 68;
+  let y = c.height / 2 - (lines.length - 1) * lh / 2;
+  for (const l of lines) { g.fillText(l, c.width / 2, y); y += lh; }
+  g.font = 'italic 30px "Noto Serif KR", serif'; g.fillText('— ' + v.ref, c.width / 2, y + 36);
+}
+function pageTexture(draw, mirror = false) {
+  const c = document.createElement('canvas'); c.width = 680; c.height = Math.round(680 * PH / PW);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  let last = null;
+  return { tex, set(v) { last = v; const g = c.getContext('2d'); g.setTransform(mirror ? -1 : 1, 0, 0, 1, mirror ? c.width : 0, 0); draw(g, c, v); tex.needsUpdate = true; },
+           redraw() { this.set(last); } };
+}
+const leftTex = pageTexture(drawLeft), rightTex = pageTexture(drawRight);
+const sheetFront = pageTexture(drawRight), sheetBack = pageTexture(drawLeft, true); // back is seen mirrored once turned
+const textures = [leftTex, rightTex, sheetFront, sheetBack];
+textures.forEach((t) => t.set(null));
+document.fonts.ready.then(() => textures.forEach((t) => t.redraw()));
+// unlit so paper is true white and ink true black; the turning sheet gets fake shading in bendSheet
+const paperMat = (tex, side = THREE.FrontSide) => new THREE.MeshBasicMaterial({ map: tex, side, toneMapped: false });
+
+// ---------- model ----------
+const root = new THREE.Group();
+scene.add(root);
+const aura = new THREE.PointLight(0xffc56b, 0, 8, 1.5);
+aura.position.set(0, 0.2, 1.4);
+root.add(aura);
+let model, book, frontHalf, spine, ribbon, headbands, sheet;
+
+new GLTFLoader().parse(Uint8Array.from(atob(MODEL.split(',')[1]), (c) => c.charCodeAt(0)).buffer, '', (gltf) => {
+  model = gltf.scene;
+  model.children[0].scale.setScalar(1);                 // drop the mockup's scale and baked tilt
+  model.children[0].children[0].quaternion.identity();
+  const byName = (n) => model.getObjectByName(n);
+  spine = byName('spine'); ribbon = byName('ribbon');
+  headbands = [byName('topHeadband'), byName('bottomHeadband')];
+  root.add(model);
+  model.updateMatrixWorld(true);
+
+  // front half (cover + its page block) hinges on the spine edge at x = -1
+  book = byName('covers').parent;
+  frontHalf = new THREE.Group(); frontHalf.position.set(-1, 0, 0);
+  book.add(frontHalf); frontHalf.updateMatrixWorld(true);
+  frontHalf.attach(byName('frontCover')); frontHalf.attach(byName('leftPageBlock'));
+
+  const geo = new THREE.PlaneGeometry(PW, PH);
+  const left = new THREE.Mesh(geo, paperMat(leftTex.tex));
+  left.position.set(PW / 2, 0, -0.002); left.rotation.y = Math.PI; // faces inward, flips up when opened
+  frontHalf.add(left);
+  const right = new THREE.Mesh(geo, paperMat(rightTex.tex));
+  right.position.set(-1 + PW / 2, 0, 0.002);
+  book.add(right);
+
+  // turning sheet: bent plane hinged at the spine, rebuilt every frame
+  const sg = new THREE.PlaneGeometry(PW, PH, 32, 1);
+  sg.userData.s = Float32Array.from({ length: sg.attributes.position.count }, (_, i) => sg.attributes.position.getX(i) + PW / 2);
+  sheet = new THREE.Group(); sheet.position.set(-1, 0, 0.005); sheet.visible = false;
+  sheet.add(new THREE.Mesh(sg, paperMat(sheetFront.tex)), new THREE.Mesh(sg, paperMat(sheetBack.tex, THREE.BackSide)));
+  book.add(sheet);
+});
+
+function bendSheet(t) {
+  // phi: sheet angle from flat-right (0) to flat-left (PI); the free edge lags behind, so the page curls
+  const phi = Math.PI * t, k = -1.1 * Math.sin(phi) / PW;
+  const geo = sheet.children[0].geometry, pos = geo.attributes.position, s = geo.userData.s;
+  for (let i = 0; i < pos.count; i++) {
+    const a = phi + k * s[i];
+    const x = Math.abs(k) < 1e-4 ? s[i] * Math.cos(phi) : (Math.sin(a) - Math.sin(phi)) / k;
+    const z = Math.abs(k) < 1e-4 ? s[i] * Math.sin(phi) : (Math.cos(phi) - Math.cos(a)) / k;
+    pos.setXYZ(i, x, pos.getY(i), z);
+  }
+  pos.needsUpdate = true;
+  for (const m of sheet.children) m.material.color.setScalar(1 - 0.18 * Math.sin(phi)); // darker while lifted
+}
+
+// ---------- open / turn / close state ----------
+let target = 0, p = 0, vel = 0, revealed = false, turn = null;
+const smoother = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function showCard(v) {
+  $('cardCat').textContent = v.cat; $('cardText').textContent = v.text; $('cardRef').textContent = '— ' + v.ref;
+  renderMarks(); $('card').classList.add('show');
+}
+function turnTo(v) {
+  if (!sheet) return;
+  sheetFront.set(current); sheetBack.set(v); rightTex.set(v); // new verse waits under the turning sheet
+  current = v; turn = { t: 0, v }; sheet.visible = true; bendSheet(0);
+  $('card').classList.remove('show');
+  paperFlip(0.1, 0.8);
+}
+function open() {
+  audio(); paperFlip(0.05, 0.9, true);
+  leftTex.set(null); rightTex.set(null); current = null;
+  target = 1; $('hint').style.opacity = 0;
+}
+function close() {
+  target = 0; revealed = false; paperFlip(0, 0.8, true);
+  if (turn) { turn = null; sheet.visible = false; leftTex.set(current); }
+  $('card').classList.remove('show'); $('glow').classList.remove('on'); $('hint').style.opacity = 1;
+}
+$('next').onclick = () => { if (!turn) turnTo(pick()); };
+$('close').onclick = close;
+
+// click vs drag: OrbitControls owns drags, a still press is a click on the book
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let down = null;
+function hits(e) {
+  ptr.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  return model && ray.intersectObject(model, true).length > 0;
+}
+renderer.domElement.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6 || !hits(e)) return;
+  target ? close() : open();
+});
+renderer.domElement.addEventListener('pointermove', (e) => { if (!e.buttons) renderer.domElement.style.cursor = hits(e) ? 'pointer' : 'grab'; });
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
+  // critically damped spring: starts and settles softly, and reverses smoothly mid-motion
+  const w = reduced ? 9 : 3.6;
+  vel += (w * w * (target - p) - 2 * w * vel) * dt; p += vel * dt;
+  const e = THREE.MathUtils.clamp(p, 0, 1);
+  if (frontHalf) {
+    frontHalf.rotation.y = -Math.PI * e;
+    spine.rotation.y = -Math.PI / 2 * e; spine.position.z = -0.33 * e;
+    ribbon.position.z = -0.02 * e;
+    for (const h of headbands) h.scale.z = Math.max(1 - e, 0.001); // they span the closed thickness and would poke out of the gutter
+    root.position.set(e, 0.5 * e +Math.sin(time * 1.2) * 0.04 * (1 - e), 0);
+    root.rotation.set(THREE.MathUtils.lerp(-0.25, -0.12, e), THREE.MathUtils.lerp(0.45, 0, e), THREE.MathUtils.lerp(0.06, 0, e));
+    aura.intensity = (revealed ? 0.5 : 0) * e * (1 + 0.12 * Math.sin(time * 2));
+
+    if (target === 1 && e > 0.96 && !revealed) {
+      revealed = true; turnTo(pick()); $('glow').classList.add('on');
+    }
+    if (turn) {
+      turn.t = Math.min(turn.t + dt / (reduced ? 0.3 : 1.25), 1);
+      bendSheet(smoother(turn.t));
+      if (turn.t === 1) { leftTex.set(turn.v); sheet.visible = false; showCard(turn.v); turn = null; }
+    }
+  }
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
