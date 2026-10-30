@@ -87,6 +87,7 @@
   <h1>오늘의 말씀</h1>
   <div class="chips glass" role="group" aria-label="주제 선택" id="chips"></div>
   <div class="tools">
+    <button class="icon-btn" id="lang" lang="en">EN</button>
     <button class="icon-btn" id="resetView" aria-label="정면 보기로 시점 정렬">↺ 정면 보기</button>
     <button class="icon-btn" id="openDrawer" aria-label="보관함 열기">♡ 보관함 <span id="count">0</span></button>
     <button class="icon-btn" id="sound" aria-pressed="true" aria-label="효과음 켜기/끄기">♪ 소리 켬</button>
@@ -107,7 +108,7 @@
 </section>
 
 <aside id="drawer" class="glass" aria-label="보관함">
-  <h2>보관한 말씀 <button class="icon-btn" id="closeDrawer" aria-label="보관함 닫기">닫기</button></h2>
+  <h2><span id="drawerTitle">보관한 말씀</span> <button class="icon-btn" id="closeDrawer" aria-label="보관함 닫기">닫기</button></h2>
   <ul id="list"></ul>
 </aside>
 <div id="toast" role="status"></div>
@@ -178,6 +179,83 @@ const VERSES = [
   ['용서·관계', '로마서 12:18', '할 수 있거든 너희로서는 모든 사람으로 더불어 평화하라'],
   ['용서·관계', '잠언 17:17', '친구는 사랑이 끊이지 아니하고 형제는 위급한 때까지 위하여 났느니라'],
 ].map(([cat, ref, text]) => ({ cat, ref, text }));
+
+// English: King James Version (public domain), keyed by the Korean reference
+const EN = {
+  "마태복음 11:28": ["Matthew 11:28", "Come unto me, all ye that labour and are heavy laden, and I will give you rest."],
+  "시편 23:1": ["Psalm 23:1", "The LORD is my shepherd; I shall not want."],
+  "시편 46:1": ["Psalm 46:1", "God is our refuge and strength, a very present help in trouble."],
+  "마태복음 6:34": ["Matthew 6:34", "Take therefore no thought for the morrow: for the morrow shall take thought for the things of itself. Sufficient unto the day is the evil thereof."],
+  "시편 34:18": ["Psalm 34:18", "The LORD is nigh unto them that are of a broken heart; and saveth such as be of a contrite spirit."],
+  "빌립보서 4:13": ["Philippians 4:13", "I can do all things through Christ which strengtheneth me."],
+  "이사야 41:10": ["Isaiah 41:10", "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee; yea, I will help thee."],
+  "이사야 40:31": ["Isaiah 40:31", "But they that wait upon the LORD shall renew their strength; they shall mount up with wings as eagles; they shall run, and not be weary; and they shall walk, and not faint."],
+  "시편 18:1": ["Psalm 18:1", "I will love thee, O LORD, my strength."],
+  "요한복음 3:16": ["John 3:16", "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."],
+  "고린도전서 13:13": ["1 Corinthians 13:13", "And now abideth faith, hope, charity, these three; but the greatest of these is charity."],
+  "요한일서 4:8": ["1 John 4:8", "He that loveth not knoweth not God; for God is love."],
+  "고린도전서 13:4": ["1 Corinthians 13:4", "Charity suffereth long, and is kind; charity envieth not; charity vaunteth not itself, is not puffed up."],
+  "로마서 5:8": ["Romans 5:8", "But God commendeth his love toward us, in that, while we were yet sinners, Christ died for us."],
+  "예레미야 29:11": ["Jeremiah 29:11", "For I know the thoughts that I think toward you, saith the LORD, thoughts of peace, and not of evil, to give you an expected end."],
+  "로마서 8:28": ["Romans 8:28", "And we know that all things work together for good to them that love God, to them who are the called according to his purpose."],
+  "시편 119:105": ["Psalm 119:105", "Thy word is a lamp unto my feet, and a light unto my path."],
+  "로마서 15:13": ["Romans 15:13", "Now the God of hope fill you with all joy and peace in believing, that ye may abound in hope, through the power of the Holy Ghost."],
+  "잠언 3:5-6": ["Proverbs 3:5-6", "Trust in the LORD with all thine heart; and lean not unto thine own understanding. In all thy ways acknowledge him, and he shall direct thy paths."],
+  "데살로니가전서 5:18": ["1 Thessalonians 5:18", "In every thing give thanks: for this is the will of God in Christ Jesus concerning you."],
+  "시편 107:1": ["Psalm 107:1", "O give thanks unto the LORD, for he is good: for his mercy endureth for ever."],
+  "시편 100:4": ["Psalm 100:4", "Enter into his gates with thanksgiving, and into his courts with praise: be thankful unto him, and bless his name."],
+  "골로새서 3:15": ["Colossians 3:15", "And let the peace of God rule in your hearts, to the which also ye are called in one body; and be ye thankful."],
+  "빌립보서 4:6": ["Philippians 4:6", "Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God."],
+  "요한복음 14:27": ["John 14:27", "Peace I leave with you, my peace I give unto you: not as the world giveth, give I unto you. Let not your heart be troubled, neither let it be afraid."],
+  "빌립보서 4:7": ["Philippians 4:7", "And the peace of God, which passeth all understanding, shall keep your hearts and minds through Christ Jesus."],
+  "이사야 26:3": ["Isaiah 26:3", "Thou wilt keep him in perfect peace, whose mind is stayed on thee: because he trusteth in thee."],
+  "시편 4:8": ["Psalm 4:8", "I will both lay me down in peace, and sleep: for thou, LORD, only makest me dwell in safety."],
+  "시편 23:2": ["Psalm 23:2", "He maketh me to lie down in green pastures: he leadeth me beside the still waters."],
+  "야고보서 1:5": ["James 1:5", "If any of you lack wisdom, let him ask of God, that giveth to all men liberally, and upbraideth not; and it shall be given him."],
+  "잠언 9:10": ["Proverbs 9:10", "The fear of the LORD is the beginning of wisdom: and the knowledge of the holy is understanding."],
+  "예레미야 33:3": ["Jeremiah 33:3", "Call unto me, and I will answer thee, and shew thee great and mighty things, which thou knowest not."],
+  "마태복음 7:7": ["Matthew 7:7", "Ask, and it shall be given you; seek, and ye shall find; knock, and it shall be opened unto you."],
+  "잠언 16:9": ["Proverbs 16:9", "A man's heart deviseth his way: but the LORD directeth his steps."],
+  "여호수아 1:9": ["Joshua 1:9", "Be strong and of a good courage; be not afraid, neither be thou dismayed: for the LORD thy God is with thee whithersoever thou goest."],
+  "신명기 31:6": ["Deuteronomy 31:6", "Be strong and of a good courage, fear not, nor be afraid of them: for the LORD thy God, he it is that doth go with thee; he will not fail thee, nor forsake thee."],
+  "디모데후서 1:7": ["2 Timothy 1:7", "For God hath not given us the spirit of fear; but of power, and of love, and of a sound mind."],
+  "시편 27:1": ["Psalm 27:1", "The LORD is my light and my salvation; whom shall I fear? the LORD is the strength of my life; of whom shall I be afraid?"],
+  "시편 56:3": ["Psalm 56:3", "What time I am afraid, I will trust in thee."],
+  "야고보서 1:2-3": ["James 1:2-3", "My brethren, count it all joy when ye fall into divers temptations; knowing this, that the trying of your faith worketh patience."],
+  "로마서 5:3-4": ["Romans 5:3-4", "And not only so, but we glory in tribulations also: knowing that tribulation worketh patience; and patience, experience; and experience, hope."],
+  "갈라디아서 6:9": ["Galatians 6:9", "And let us not be weary in well doing: for in due season we shall reap, if we faint not."],
+  "고린도전서 10:13": ["1 Corinthians 10:13", "There hath no temptation taken you but such as is common to man: but God is faithful, who will not suffer you to be tempted above that ye are able; but will with the temptation also make a way to escape, that ye may be able to bear it."],
+  "시편 30:5": ["Psalm 30:5", "For his anger endureth but a moment; in his favour is life: weeping may endure for a night, but joy cometh in the morning."],
+  "에베소서 4:32": ["Ephesians 4:32", "And be ye kind one to another, tenderhearted, forgiving one another, even as God for Christ's sake hath forgiven you."],
+  "골로새서 3:13": ["Colossians 3:13", "Forbearing one another, and forgiving one another, if any man have a quarrel against any: even as Christ forgave you, so also do ye."],
+  "마태복음 6:14": ["Matthew 6:14", "For if ye forgive men their trespasses, your heavenly Father will also forgive you."],
+  "요한복음 13:34": ["John 13:34", "A new commandment I give unto you, That ye love one another; as I have loved you, that ye also love one another."],
+  "로마서 12:18": ["Romans 12:18", "If it be possible, as much as lieth in you, live peaceably with all men."],
+  "잠언 17:17": ["Proverbs 17:17", "A friend loveth at all times, and a brother is born for adversity."],
+};
+for (const v of VERSES) [v.enRef, v.en] = EN[v.ref];
+
+const I18N = {
+  ko: { title: '오늘의 말씀', all: '전체', hint: '책을 눌러 말씀을 펼쳐보세요 · 드래그로 둘러보기', lang: 'EN', langLabel: 'Switch to English',
+    reset: '↺ 정면 보기', resetLabel: '정면 보기로 시점 정렬', saved: '♡ 보관함', savedLabel: '보관함 열기', soundOn: '♪ 소리 켬', soundOff: '♪ 소리 끔', soundLabel: '효과음 켜기/끄기',
+    topics: '주제 선택', copy: '복사', save: '♡ 저장', isSaved: '♥ 저장됨', next: '다른 구절 ›', close: '책 덮기', del: '삭제',
+    drawer: '보관한 말씀', drawerClose: '닫기', drawerCloseLabel: '보관함 닫기', empty: '아직 보관한 말씀이 없어요. 구절 카드의 ♡ 저장을 눌러 모아보세요.',
+    tCopied: '구절을 복사했어요', tSaved: '보관함에 저장했어요', tUnsaved: '저장을 취소했어요', tDeleted: '보관함에서 삭제했어요',
+    version: '개역한글', bible: '성 경', bibleSub: 'THE HOLY BIBLE' },
+  en: { title: "Today's Word", all: 'All', hint: 'Tap the book to open it · Drag to look around', lang: '한국어', langLabel: '한국어로 전환',
+    reset: '↺ Front view', resetLabel: 'Reset to front view', saved: '♡ Saved', savedLabel: 'Open saved verses', soundOn: '♪ Sound on', soundOff: '♪ Sound off', soundLabel: 'Toggle sound effects',
+    topics: 'Choose a topic', copy: 'Copy', save: '♡ Save', isSaved: '♥ Saved', next: 'Another verse ›', close: 'Close book', del: 'Delete',
+    drawer: 'Saved verses', drawerClose: 'Close', drawerCloseLabel: 'Close saved verses', empty: 'No saved verses yet. Tap ♡ Save on a verse card to keep it here.',
+    tCopied: 'Verse copied', tSaved: 'Saved', tUnsaved: 'Removed from saved', tDeleted: 'Deleted',
+    version: 'KJV', bible: 'HOLY BIBLE', bibleSub: 'KING JAMES VERSION' },
+};
+const CAT_EN = { '위로': 'Comfort', '힘': 'Strength', '사랑': 'Love', '소망': 'Hope', '감사': 'Thanksgiving', '평안': 'Peace',
+  '지혜·기도': 'Wisdom & Prayer', '용기': 'Courage', '인내': 'Perseverance', '용서·관계': 'Forgiveness' };
+let lang = 'ko'; // set from storage below, once helpers exist
+const tr = (k) => I18N[lang][k];
+const catName = (c) => c === '전체' ? tr('all') : lang === 'en' ? CAT_EN[c] : c;
+const shown = (v) => lang === 'en' && v.en ? { ref: v.enRef, text: v.en } : { ref: v.ref, text: v.text };
+
 const CATS = ['전체', ...new Set(VERSES.map((v) => v.cat))];
 let cat = '전체', current = null;
 function pick() {
@@ -191,19 +269,20 @@ const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
+lang = store.get('bible-lang', 'ko') === 'en' ? 'en' : 'ko';
 let toastTimer;
 function toast(msg) {
   $('toast').textContent = msg; $('toast').classList.add('show');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 1600);
 }
 async function copy(v) {
-  const s = `${v.text}\n— ${v.ref} (개역한글)`;
+  const d = shown(v), s = `${d.text}\n— ${d.ref} (${tr('version')})`;
   try { await navigator.clipboard.writeText(s); }
   catch { // fallback for viewers that refuse the clipboard API
     const t = document.createElement('textarea'); t.value = s; document.body.appendChild(t); t.select();
     try { document.execCommand('copy'); } catch {} t.remove();
   }
-  toast('구절을 복사했어요');
+  toast(tr('tCopied'));
 }
 
 // ---------- audio (Web Audio synth, no files) ----------
@@ -239,7 +318,7 @@ function paperFlip(delay, dur, heavy = false) {
 }
 function setSound(on) {
   soundOn = on; store.set('bible-sound', on);
-  $('sound').setAttribute('aria-pressed', on); $('sound').textContent = on ? '♪ 소리 켬' : '♪ 소리 끔';
+  $('sound').setAttribute('aria-pressed', on); $('sound').textContent = tr(on ? 'soundOn' : 'soundOff');
   if (on) audio();
   if (master) master.gain.setTargetAtTime(on ? 1 : 0, ac.currentTime, 0.3);
 }
@@ -253,21 +332,22 @@ const isMarked = (v) => v && marks.some((m) => m.ref === v.ref);
 function renderMarks() {
   $('count').textContent = marks.length;
   $('save').setAttribute('aria-pressed', isMarked(current));
-  $('save').textContent = isMarked(current) ? '♥ 저장됨' : '♡ 저장';
+  $('save').textContent = tr(isMarked(current) ? 'isSaved' : 'save');
   const list = $('list'); list.replaceChildren();
-  if (!marks.length) { const e = document.createElement('li'); e.className = 'empty'; e.textContent = '아직 보관한 말씀이 없어요. 구절 카드의 ♡ 저장을 눌러 모아보세요.'; list.append(e); }
+  if (!marks.length) { const e = document.createElement('li'); e.className = 'empty'; e.textContent = tr('empty'); list.append(e); }
   for (const m of marks) {
+    const v = VERSES.find((x) => x.ref === m.ref) ?? m, d = shown(v); // saved by Korean ref, shown in the current language
     const li = document.createElement('li'), p = document.createElement('p'), c = document.createElement('cite'), row = document.createElement('div');
-    p.textContent = m.text; c.textContent = `${m.ref} · ${m.cat}`; row.className = 'row';
-    const cp = document.createElement('button'); cp.textContent = '복사'; cp.onclick = () => copy(m);
-    const del = document.createElement('button'); del.textContent = '삭제'; del.onclick = () => { marks = marks.filter((x) => x.ref !== m.ref); store.set('bible-bookmarks', marks); renderMarks(); toast('보관함에서 삭제했어요'); };
+    p.textContent = d.text; c.textContent = `${d.ref} · ${catName(v.cat)}`; row.className = 'row';
+    const cp = document.createElement('button'); cp.textContent = tr('copy'); cp.onclick = () => copy(v);
+    const del = document.createElement('button'); del.textContent = tr('del'); del.onclick = () => { marks = marks.filter((x) => x.ref !== m.ref); store.set('bible-bookmarks', marks); renderMarks(); toast(tr('tDeleted')); };
     row.append(cp, del); li.append(p, c, row); list.append(li);
   }
 }
 $('save').onclick = () => {
   if (!current) return;
-  if (isMarked(current)) { marks = marks.filter((m) => m.ref !== current.ref); toast('저장을 취소했어요'); }
-  else { marks = [current, ...marks]; toast('보관함에 저장했어요'); }
+  if (isMarked(current)) { marks = marks.filter((m) => m.ref !== current.ref); toast(tr('tUnsaved')); }
+  else { marks = [{ cat: current.cat, ref: current.ref, text: current.text }, ...marks]; toast(tr('tSaved')); }
   store.set('bible-bookmarks', marks); renderMarks();
 };
 $('copy').onclick = () => current && copy(current);
@@ -277,7 +357,7 @@ renderMarks();
 
 // ---------- category chips ----------
 for (const c of CATS) {
-  const b = document.createElement('button'); b.className = 'chip'; b.textContent = c; b.setAttribute('aria-pressed', c === cat);
+  const b = document.createElement('button'); b.className = 'chip'; b.dataset.cat = c; b.textContent = catName(c); b.setAttribute('aria-pressed', c === cat);
   b.onclick = () => {
     cat = c; document.querySelectorAll('.chip').forEach((x) => x.setAttribute('aria-pressed', x === b));
     b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -355,25 +435,29 @@ function paper(g, c, gutterAtLeft) {
 function drawLeft(g, c, v) {
   paper(g, c, false);
   g.textAlign = 'center'; g.fillStyle = INK;
-  if (!v) { g.font = '700 30px "Noto Serif KR", serif'; g.fillText('✝', c.width / 2, c.height / 2); return; }
-  g.font = '28px "Noto Serif KR", serif'; g.fillText(v.cat, c.width / 2, c.height / 2 - 90);
-  g.font = '700 46px "Noto Serif KR", serif'; g.fillText('오늘의 말씀', c.width / 2, c.height / 2 - 20);
+  if (!v) return; // intro spread: blank left page
+  g.font = '28px "Noto Serif KR", serif'; g.fillText(catName(v.cat), c.width / 2, c.height / 2 - 90);
+  g.font = '700 46px "Noto Serif KR", serif'; g.fillText(tr('title'), c.width / 2, c.height / 2 - 20);
   g.fillRect(c.width / 2 - 40, c.height / 2 + 10, 80, 2);
-  g.font = '34px "Noto Serif KR", serif'; g.fillText(v.ref, c.width / 2, c.height / 2 + 70);
+  g.font = '34px "Noto Serif KR", serif'; g.fillText(shown(v).ref, c.width / 2, c.height / 2 + 70);
 }
 function drawRight(g, c, v) {
   paper(g, c, true);
   g.textAlign = 'center'; g.fillStyle = INK;
   if (!v) {
-    g.font = '700 56px "Noto Serif KR", serif'; g.fillText('성 경', c.width / 2, c.height / 2 - 10);
-    g.font = '26px "Noto Serif KR", serif'; g.fillText('THE HOLY BIBLE', c.width / 2, c.height / 2 + 50);
+    g.font = '700 56px "Noto Serif KR", serif'; g.fillText(tr('bible'), c.width / 2, c.height / 2 - 10);
+    g.font = '26px "Noto Serif KR", serif'; g.fillText(tr('bibleSub'), c.width / 2, c.height / 2 + 50);
     return;
   }
-  g.font = '500 40px "Noto Serif KR", serif';
-  const lines = wrap(g, v.text, c.width - 170), lh = 68;
+  const d = shown(v);
+  let size = 40, lines, lh;
+  do { // shrink long verses (English KJV runs longer) until they fit inside the page frame
+    g.font = `500 ${size}px "Noto Serif KR", serif`; lh = size * 1.7;
+    lines = wrap(g, d.text, c.width - 170);
+  } while (lines.length * lh > c.height - 300 && (size -= 2) > 24);
   let y = c.height / 2 - (lines.length - 1) * lh / 2;
   for (const l of lines) { g.fillText(l, c.width / 2, y); y += lh; }
-  g.font = 'italic 30px "Noto Serif KR", serif'; g.fillText('— ' + v.ref, c.width / 2, y + 36);
+  g.font = 'italic 30px "Noto Serif KR", serif'; g.fillText('— ' + d.ref, c.width / 2, y + 36);
 }
 function pageTexture(draw, mirror = false) {
   const c = document.createElement('canvas'); c.width = 680; c.height = Math.round(680 * PH / PW);
@@ -399,12 +483,43 @@ root.add(aura);
 let model, book, frontHalf, spine, ribbon, sheet;
 const SPINE_R = 0.3333; // spine half-width = covers' outer face z
 
+// English title: copy the baked cover/spine texture, paint over "성경전서", letter "HOLY BIBLE" in its place.
+// glTF textures are stored upside down (flipY = false), so text is drawn with a vertical flip.
+// Pixel boxes are measured from book.glb's textures; shortcut: redo them if the model's artwork changes.
+const TITLE = {
+  cover: { erase: [760, 2260, 900, 300], at: [1209, 2410], size: 230, max: 1700, rotate: 0 },
+  spine: { erase: [150, 1990, 510, 570], at: [403, 2272], size: 200, max: 1500, rotate: Math.PI / 2 },
+};
+const titled = [];
+function englishTitle(mat, spec, gold) {
+  const src = mat.map, img = src.image, c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const [r, gr, b] = g.getImageData(40, 40, 1, 1).data; // leather colour away from the text
+  g.fillStyle = `rgb(${r},${gr},${b})`; g.fillRect(...spec.erase);
+  g.save(); g.translate(...spec.at); g.scale(1, -1); g.rotate(spec.rotate);
+  g.fillStyle = gold; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `bold ${spec.size}px "Arial Black", Arial, "Helvetica Neue", sans-serif`;
+  g.fillText('HOLY BIBLE', 0, 0, spec.max); g.restore();
+  const en = new THREE.CanvasTexture(c);
+  Object.assign(en, { flipY: false, colorSpace: src.colorSpace, wrapS: src.wrapS, wrapT: src.wrapT, anisotropy: 8 });
+  titled.push({ mat, ko: src, en });
+}
+function setCoverLang() { for (const t of titled) t.mat.map = lang === 'en' ? t.en : t.ko; }
+
 new GLTFLoader().parse(Uint8Array.from(atob(MODEL.split(',')[1]), (c) => c.charCodeAt(0)).buffer, '', (gltf) => {
   model = gltf.scene;
   model.children[0].scale.setScalar(1);                 // drop the mockup's scale and baked tilt
   model.children[0].children[0].quaternion.identity();
   const byName = (n) => model.getObjectByName(n);
   spine = byName('spine'); ribbon = byName('ribbon');
+  const titleMat = (n) => { let m; byName(n).traverse((o) => { if (o.material?.map && !m) m = o.material; }); return m; };
+  const coverMat = titleMat('frontCover'), sc = document.createElement('canvas').getContext('2d');
+  sc.canvas.width = sc.canvas.height = 1; sc.drawImage(coverMat.map.image, 1205, 2805, 1, 1, 0, 0, 1, 1); // a pixel of the gold cross
+  const [r, g, b] = sc.getImageData(0, 0, 1, 1).data, gold = `rgb(${r},${g},${b})`;
+  englishTitle(coverMat, TITLE.cover, gold);
+  englishTitle(titleMat('spine'), TITLE.spine, gold);
+  setCoverLang();
   root.add(model);
   model.updateMatrixWorld(true);
   for (const h of ['topHeadband', 'bottomHeadband']) spine.attach(byName(h)); // headbands ride along with the spine
@@ -451,7 +566,8 @@ const smoother = (t) => t * t * t * (t * (t * 6 - 15) + 10);
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function showCard(v) {
-  $('cardCat').textContent = v.cat; $('cardText').textContent = v.text; $('cardRef').textContent = '— ' + v.ref;
+  const d = shown(v);
+  $('cardCat').textContent = catName(v.cat); $('cardText').textContent = d.text; $('cardRef').textContent = '— ' + d.ref;
   renderMarks(); $('card').classList.add('show');
 }
 function turnTo(v) {
@@ -473,6 +589,26 @@ function close() {
 }
 $('next').onclick = () => { if (!turn) turnTo(pick()); };
 $('close').onclick = close;
+
+// ---------- language ----------
+function applyLang() {
+  document.documentElement.lang = lang; document.title = tr('title');
+  const label = (id, text, aria) => { if (text != null) $(id).textContent = text; if (aria) $(id).setAttribute('aria-label', aria); };
+  label('lang', tr('lang'), tr('langLabel')); $('lang').lang = lang === 'ko' ? 'en' : 'ko';
+  document.querySelector('h1').textContent = tr('title');
+  label('hint', tr('hint')); label('resetView', tr('reset'), tr('resetLabel'));
+  $('openDrawer').firstChild.textContent = tr('saved') + ' '; label('openDrawer', null, tr('savedLabel'));
+  label('sound', tr(soundOn ? 'soundOn' : 'soundOff'), tr('soundLabel'));
+  label('chips', null, tr('topics')); document.querySelectorAll('.chip').forEach((b) => { b.textContent = catName(b.dataset.cat); });
+  label('copy', tr('copy')); label('next', tr('next')); label('close', tr('close'));
+  label('drawerTitle', tr('drawer')); label('drawer', null, tr('drawer')); label('closeDrawer', tr('drawerClose'), tr('drawerCloseLabel'));
+  renderMarks();
+  textures.forEach((t) => t.redraw());
+  if ($('card').classList.contains('show')) showCard(current);
+  setCoverLang();
+}
+$('lang').onclick = () => { lang = lang === 'ko' ? 'en' : 'ko'; store.set('bible-lang', lang); applyLang(); };
+applyLang();
 
 // click vs drag: OrbitControls owns drags, a still press is a click on the book
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
