@@ -396,7 +396,8 @@ scene.add(root);
 const aura = new THREE.PointLight(0xffc56b, 0, 8, 1.5);
 aura.position.set(0, 0.2, 1.4);
 root.add(aura);
-let model, book, frontHalf, spine, ribbon, headbands, sheet;
+let model, book, frontHalf, spine, ribbon, sheet;
+const SPINE_R = 0.3333; // spine half-width = covers' outer face z
 
 new GLTFLoader().parse(Uint8Array.from(atob(MODEL.split(',')[1]), (c) => c.charCodeAt(0)).buffer, '', (gltf) => {
   model = gltf.scene;
@@ -404,9 +405,9 @@ new GLTFLoader().parse(Uint8Array.from(atob(MODEL.split(',')[1]), (c) => c.charC
   model.children[0].children[0].quaternion.identity();
   const byName = (n) => model.getObjectByName(n);
   spine = byName('spine'); ribbon = byName('ribbon');
-  headbands = [byName('topHeadband'), byName('bottomHeadband')];
   root.add(model);
   model.updateMatrixWorld(true);
+  for (const h of ['topHeadband', 'bottomHeadband']) spine.attach(byName(h)); // headbands ride along with the spine
 
   // front half (cover + its page block) hinges on the spine edge at x = -1
   book = byName('covers').parent;
@@ -496,10 +497,14 @@ renderer.setAnimationLoop(() => {
   vel += (w * w * (target - p) - 2 * w * vel) * dt; p += vel * dt;
   const e = THREE.MathUtils.clamp(p, 0, 1);
   if (frontHalf) {
-    frontHalf.rotation.y = -Math.PI * e;
-    spine.rotation.y = -Math.PI / 2 * e; spine.position.z = -0.33 * e;
+    // spine stays the chord between the swinging front-cover edge and the fixed back-cover edge
+    const th = Math.PI * e;
+    frontHalf.rotation.y = -th;
+    spine.rotation.y = -th / 2;
+    spine.position.set(-1 - SPINE_R / 2 * Math.sin(th), 0, -SPINE_R / 2 * (1 - Math.cos(th)));
+    spine.scale.z = Math.max(Math.cos(th / 2), 1e-3); // shortcut: squashes spine lettering when half open; a true hinge needs bent page blocks
+    spine.visible = e < 0.999; // fully open the chord is zero-length and would z-fight the covers
     ribbon.position.z = -0.02 * e;
-    for (const h of headbands) h.scale.z = Math.max(1 - e, 0.001); // they span the closed thickness and would poke out of the gutter
     root.position.set(e, 0.5 * e +Math.sin(time * 1.2) * 0.04 * (1 - e), 0);
     root.rotation.set(THREE.MathUtils.lerp(-0.25, -0.12, e), THREE.MathUtils.lerp(0.45, 0, e), THREE.MathUtils.lerp(0.06, 0, e));
     aura.intensity = (revealed ? 0.5 : 0) * e * (1 + 0.12 * Math.sin(time * 2));
